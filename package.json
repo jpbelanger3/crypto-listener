@@ -1,0 +1,21 @@
+{
+  "name": "crypto-listener",
+  "version": "0.0.1",
+  "private": true,
+  "license": "ISC",
+  "scripts": {
+    "start": "node app",
+    "dev": "nodemon app",
+    "test": "node test"
+  },
+  "dependencies": {
+    "nodemon": "^1.14.12",
+    "mongodb": "^3.0.2",
+    "db-migrate": "^0.10.5",
+    "socket.io": "^2.0.4",
+    "express": "^4.16.2",
+    "config": "^1.29.4",
+    "ws": "^4.0.0",
+    "qs": "^6.5.1"
+  }
+}
