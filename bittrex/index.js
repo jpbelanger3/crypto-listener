@@ -5,6 +5,7 @@ var dataHandler = require('./data-handler')
 
 var markets = []
 var currencies = []
+var marketSummaries = []
 var chosenMarkets = []
 var activeListeners = []
 
@@ -12,41 +13,90 @@ async function _init(chosenMarketNameList) {
     var initialPromises = [
         bittrex.getMarkets(),
         bittrex.getCurrencies(),
+        bittrex.getMarketSummaries(),
     ]
     var resultList = await Promise.all(initialPromises)
     markets = resultList[0]
     currencies = resultList[1]
-
-    markets.forEach((market) => {
-        if(chosenMarketNameList.includes(market.MarketName)) {
+    marketSummaries = resultList[2]
+    var listenerList = []
+    marketSummaries.forEach(function(market) {
+        if(chosenMarketNameList === 'all' || chosenMarketNameList.includes(market.MarketName)) {
             chosenMarkets.push(market)
-            db.createCollectionIfNotExist('Market History - ' + market.MarketName)
-            let listener = new Listener(market.MarketName, 5000, 'Market History')
-            listener.setDataFetcher(bittrex.getMarketHistory)
-            listener.setCallback(dataHandler.handleMarketHistory)
-            activeListeners.push(listener)
+            let time = calculStartingTime(market)
+            if (time > 0) {
+                let listener = new Listener(market.MarketName, time, 'Market History')
+                listener.setDataFetcher(bittrex.getMarketHistory)
+                listener.setCallback(dataHandler.handleMarketHistory)
+                listenerList.push(listener)
+            }
         }
     })
 
-    console.log(chosenMarkets)
+    
+    console.log('STARTED FOR: ', chosenMarketNameList)
+    return listenerList
+}
+
+function msToTime(duration) {
+    var milliseconds = parseInt((duration%1000)/100)
+        , seconds = parseInt((duration/1000)%60)
+        , minutes = parseInt((duration/(1000*60))%60)
+
+    minutes = (minutes < 10) ? "0" + minutes : minutes
+    seconds = (seconds < 10) ? "0" + seconds : seconds
+
+    return minutes + " m " + seconds + "." + milliseconds + ' s '
+}
+
+function calculStartingTime(market) {
+    const max =  15 * 60 * 1000
+    const min = 1000
+    var time
+    if (market.BaseVolume === 0) {
+        time = 0
+        console.log('VOLUME 0 : ' + market.MarketName)
+    }
+    if (market.MarketName === 'USDT-BTC') {
+        time = min * 5
+    } else if (market.MarketName.includes('USDT-')) {
+        time = max / (market.BaseVolume * 0.00004)
+    } else if (market.MarketName.includes('ETH-')) {
+        time = max / (market.BaseVolume * 0.03)
+    } else if (market.MarketName.includes('BTC-')) {
+        time = max / (market.BaseVolume * 0.15)
+    } else {
+        time = 0
+        console.log('NOT RECOGNIZED BASE : ' + market.MarketName)
+    }
+    //console.log(market.MarketName + ' : TIME :' + time)
+    if (time < min) time = min
+    else if (time > max) time = max
+    return time
 }
 
 module.exports = {
     start: async function() {
-        await _init(['BTC-ZCL'])
-        markets.sort((a, b) =>  { 
-            let res
-            if (a.MarketName < b.MarketName) res = -1
-            else res = 1
-            return res
-        })
-        /*markets.forEach((market) => {
-            console.log(market.MarketName)
-        })*/
-
+        //activeListeners = await _init(['BTC-ADA', 'USDT-BTC', 'BTC-NBT'])
+        activeListeners = await _init('all')
         activeListeners.forEach((listener) => { listener.start() })
     },
     test: async function() {
         return true
-    }
+    },
+    getState: function() {
+        var data = {}
+        data.listenerList = activeListeners.map((listener) => {
+            var mapped = {}
+            mapped.title = listener.title + ' - ' + listener.marketName
+            mapped.intervalTime = msToTime(listener.intervalTime)
+            return mapped
+        }).sort((a, b) => {
+            var res = 0
+            if (a.intervalTime < b.intervalTime) res = -1
+            if (a.intervalTime > b.intervalTime) res = 1
+            return res
+        })
+        return data
+    },
 }

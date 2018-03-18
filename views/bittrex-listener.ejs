@@ -1,0 +1,17 @@
+<html>
+    <head>
+        <title>Bittrex-Listener</title>
+    </head>
+    <body >
+        <h3>Listerners State - Count: <%= listenerList.length %></h3>
+        <ul>
+            <% listenerList.forEach(function(listener) { %>
+                <li>
+                    <div>Name: <%= listener.title %></div>
+                    <div>Interval time: <%= listener.intervalTime %></div>
+                </li>
+                <br><br>
+            <% }) %>
+        </ul>
+    </body>
+</html>

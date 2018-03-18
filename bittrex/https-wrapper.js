@@ -24,8 +24,14 @@ function sendRequest(version, api, method, params) {
         var data = ''
         var req = https.request(options, function(res){
             res.on('data', (d) => { data += d })
-            res.on('end', () => { 
-                var parsedData = JSON.parse(data)
+            res.on('end', () => {
+                var parsedData = {} 
+                try {
+                    parsedData = JSON.parse(data)
+                } catch(e) {
+                    reject('ERROR : Error parsing ' + data)
+                }
+                
                 if (parsedData.success === true) resolve(parsedData.result)
                 else reject('ERROR : Bittrex responded with "' + parsedData.message + '"') 
             })
