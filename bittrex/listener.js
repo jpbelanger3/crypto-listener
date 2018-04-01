@@ -11,7 +11,9 @@ function Listener(marketName, interval, title) {
     this.isFirst = true
 
     this.dataFetcher = null
-    this.callback = (data) => { console.log(data) }
+    this.handler = {
+        handle: (data) => { console.log(data) }
+    }
     this.interval = null
 }
 
@@ -20,21 +22,23 @@ Listener.prototype.setDataFetcher = function(dataFetcher, params) {
     this.dataFetcherParams = params
 }
 
-Listener.prototype.setCallback = function(callback, params) {
-    this.callback = callback
-    this.callbackParams = callback
+Listener.prototype.setHandler = function(handler, params) {
+    this.handler = handler
+    this.handlerParams = params
 }
 
 Listener.prototype.setIntervalTime = function(time) {
     this.intervalTime = time
     this.stop()
-    this.start()
+    this.start(true)
     //console.log(this.marketName + ' : RESTARTED  WITH TIME: ' + time/1000 + ' s')
 }
 
-Listener.prototype.start = function() {
+Listener.prototype.start = async function(skipHandlerInit) {
     //console.log(this.marketName + ' : STARTED')
+    if (!skipHandlerInit) await this.handler.init()
     const self = this
+    this.tick()
     if (this.dataFetcher) {
         this.interval = setInterval(() => { self.tick() }, self.intervalTime)
     } else {
@@ -48,7 +52,7 @@ Listener.prototype.stop = function() {
 
 Listener.prototype.tick = async function() {
     let data = await this.dataFetcher(this.marketName, this.dataFetcherParams)
-    var dataCount = await this.callback(data, this.marketName, this.callbackParams)
+    var dataCount = await this.handler.handle(data, this.marketName, this.handlerParams)
     this.tickCount++
 
     if (!this.isFirst && (dataCount || dataCount === 0)) {

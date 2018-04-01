@@ -60,7 +60,25 @@ async function update(collectionName, filter, updateObj) {
     return updateResult
 }
 
+async function findDuplicates(collectionName, field) {
+    const client = await mongoClient.connect(url)
+    const db = client.db(dbName)
+    const collection = db.collection(collectionName)
+
+    var params = [
+        {"$match": { [field] :{ "$ne" : null } } },
+        {"$group" : {"_id": "$" + field, "count": { "$sum": 1 } } },
+        {"$match": {"count" : {"$gt": 1} } },
+        {"$project": {[field] : "$_id", "_id" : 0, "count" : "$count"} },
+    ]
+    const result = collection.aggregate(params).toArray()
+
+    client.close()
+    return result
+}
+
 module.exports.createCollectionIfNotExist = createCollectionIfNotExist
 module.exports.insert = insert
 module.exports.find = find
 module.exports.update = update
+module.exports.findDuplicates = findDuplicates

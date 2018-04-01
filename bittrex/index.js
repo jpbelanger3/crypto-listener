@@ -1,7 +1,7 @@
 var bittrex = require('./api-interface')
 var Listener = require('./listener').Listener
 var db = require('../mongo')
-var dataHandler = require('./data-handler')
+var MarketHistoryHandler = require('./market-history-handler').MarketHistoryHandler
 
 var markets = []
 var currencies = []
@@ -20,19 +20,18 @@ async function _init(chosenMarketNameList) {
     currencies = resultList[1]
     marketSummaries = resultList[2]
     var listenerList = []
-    marketSummaries.forEach(function(market) {
+    for (let index = 0; index < marketSummaries.length; index++) {
+        const market = marketSummaries[index]
         if(chosenMarketNameList === 'all' || chosenMarketNameList.includes(market.MarketName)) {
-            chosenMarkets.push(market)
             let time = calculStartingTime(market)
             if (time > 0) {
                 let listener = new Listener(market.MarketName, time, 'Market History')
                 listener.setDataFetcher(bittrex.getMarketHistory)
-                listener.setCallback(dataHandler.handleMarketHistory)
+                listener.setHandler(new MarketHistoryHandler(market.MarketName))
                 listenerList.push(listener)
             }
         }
-    })
-
+    }
     
     console.log('STARTED FOR: ', chosenMarketNameList)
     return listenerList
@@ -99,4 +98,11 @@ module.exports = {
         })
         return data
     },
+    getDuplicatesCount: function() {
+        return Promise.all(activeListeners.map((listener) => {
+            return db.findDuplicates(listener.title + ' - ' + listener.marketName, 'Id')
+        })).then((data) => {
+            return data.filter((arr) => { return arr.length > 0 })
+        })
+    }
 }
